@@ -984,7 +984,7 @@
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
-			dstSubfolderSpec = 7;
+			dstSubfolderSpec = 6;
 			files = (
 				9FF86678134DCA16001CE857 /* cdrdao in Copy CD Programs */,
 				9FF86679134DCA16001CE857 /* toc2cue in Copy CD Programs */,

@@ -324,7 +324,7 @@
     //The throttle is expressed as a value from 1.0 (min) to -1.0 (max):
     //Convert it to a percentage from 0-100.
     NSUInteger percentage = 50 * (1.0f - throttleValue);
-    NSString *throttleDescription = [NSString stringWithFormat: format, percentage];
+    NSString *throttleDescription = [NSString localizedStringWithFormat: format, percentage];
     
     NSLevelIndicator *level = [bezel viewWithTag: BXBezelLevel];
     NSTextField *label      = [bezel viewWithTag: BXBezelLevelStatus];
@@ -435,7 +435,7 @@
     NSString *actionFormat = NSLocalizedString(@"Drive %1$@ added",
                                                @"Label for drive-added bezel notification. %1$@ is the drive letter.");
     
-    actionLabel.stringValue = [NSString stringWithFormat: actionFormat, drive.letter];
+    actionLabel.stringValue = [NSString localizedStringWithFormat: actionFormat, drive.letter];
     titleLabel.stringValue = drive.title;
     icon.image = [self.class bezelIconForDrive: drive];
     
@@ -456,7 +456,7 @@
     
     NSString *actionFormat = NSLocalizedString(@"Drive %1$@ swapped", @"Label for drive-swapped bezel notification. %1$@ is the drive letter.");
     
-    actionLabel.stringValue = [NSString stringWithFormat: actionFormat, toDrive.letter];
+    actionLabel.stringValue = [NSString localizedStringWithFormat: actionFormat, toDrive.letter];
     titleLabel.stringValue = toDrive.title;
     
     fromIcon.image = [self.class bezelIconForDrive: fromDrive];
@@ -478,7 +478,7 @@
 
     NSString *actionFormat = NSLocalizedString(@"Drive %1$@ ejected", @"Label for drive-removed bezel notification. %1$@ is the drive letter.");
     
-    actionLabel.stringValue = [NSString stringWithFormat: actionFormat, drive.letter];
+    actionLabel.stringValue = [NSString localizedStringWithFormat: actionFormat, drive.letter];
     titleLabel.stringValue = drive.title;
     if (@available(macOS 11.0, *)) {
         icon.image = [NSImage imageWithSystemSymbolName: @"eject.fill" accessibilityDescription: nil];
@@ -503,7 +503,7 @@
     
     NSString *actionFormat = NSLocalizedString(@"Drive %1$@ imported", @"Label for drive-imported bezel notification. %1$@ is the drive letter.");
     
-    actionLabel.stringValue = [NSString stringWithFormat: actionFormat, drive.letter];
+    actionLabel.stringValue = [NSString localizedStringWithFormat: actionFormat, drive.letter];
     titleLabel.stringValue = drive.title;
     icon.image = [self.class bezelIconForDrive: drive];
     

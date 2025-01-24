@@ -242,7 +242,7 @@ BOOL _mountSynchronously(DASessionRef session, DADiskRef disk, CFURLRef path, DA
 	//(From this point on, if we fail, we have to remount the disk.)
 
 	NSTask *cdrdao = [[NSTask alloc] init];
-	NSString *cdrdaoPath = [[NSBundle mainBundle] pathForResource: @"cdrdao" ofType: nil];
+	NSURL *cdrdaoPath = [[NSBundle mainBundle] URLForAuxiliaryExecutable: @"cdrdao"];
 	
 	//3 is the maximum error correction level, 0 disables error correction altogether.
 	//The three different types of error correct make negligible difference to the overall speed:
@@ -263,7 +263,7 @@ BOOL _mountSynchronously(DASessionRef session, DADiskRef disk, CFURLRef path, DA
 						  nil];
 	
 	cdrdao.currentDirectoryPath = destinationURL.path;
-	cdrdao.launchPath = cdrdaoPath;
+    cdrdao.executableURL = cdrdaoPath;
 	cdrdao.arguments = arguments;
 	
 	self.task = cdrdao;
@@ -281,8 +281,8 @@ BOOL _mountSynchronously(DASessionRef session, DADiskRef disk, CFURLRef path, DA
 			//Now, convert the TOC file to a CUE
 			NSTask *toc2cue = [[NSTask alloc] init];
 			
-			toc2cue.launchPath  = [[NSBundle mainBundle] pathForResource: @"toc2cue" ofType: nil];
-			toc2cue.arguments   = @[tocURL.path, cueURL.path];
+            toc2cue.executableURL  = [[NSBundle mainBundle] URLForAuxiliaryExecutable: @"toc2cue"];
+			toc2cue.arguments      = @[tocURL.path, cueURL.path];
 			toc2cue.standardOutput = [NSFileHandle fileHandleWithNullDevice];
 			
 			//toc2cue takes hardly any time to run, so just block until it finishes.
