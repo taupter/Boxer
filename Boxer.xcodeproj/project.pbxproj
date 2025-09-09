@@ -5161,6 +5161,7 @@
 					"$(inherited)",
 					"\"$(SRCROOT)/Frameworks/SDL2.framework/Headers\"",
 					"\"$(SRCROOT)/DOSBox-Staging/submodules/loguru\"",
+					"\"$(SRCROOT)/Vendor/OpenEmuShaders/Source/RendererPrivate\"",
 				);
 				INFOPLIST_FILE = "Standalone/Boxer Standalone-Info.plist";
 				LD_NO_PIE = YES;
@@ -5203,6 +5204,7 @@
 					"$(inherited)",
 					"\"$(SRCROOT)/Frameworks/SDL2.framework/Headers\"",
 					"\"$(SRCROOT)/DOSBox-Staging/submodules/loguru\"",
+					"\"$(SRCROOT)/Vendor/OpenEmuShaders/Source/RendererPrivate\"",
 				);
 				INFOPLIST_FILE = "Standalone/Boxer Standalone-Info.plist";
 				LD_NO_PIE = YES;
@@ -5374,6 +5376,7 @@
 					"$(inherited)",
 					"\"$(SRCROOT)/Frameworks/SDL2.framework/Headers\"",
 					"\"$(SRCROOT)/DOSBox-Staging/submodules/loguru\"",
+					"\"$(SRCROOT)/Vendor/OpenEmuShaders/Source/RendererPrivate\"",
 				);
 				INFOPLIST_FILE = Info.plist;
 				LD_NO_PIE = YES;
@@ -5422,6 +5425,7 @@
 					"$(inherited)",
 					"\"$(SRCROOT)/Frameworks/SDL2.framework/Headers\"",
 					"\"$(SRCROOT)/DOSBox-Staging/submodules/loguru\"",
+					"\"$(SRCROOT)/Vendor/OpenEmuShaders/Source/RendererPrivate\"",
 				);
 				INFOPLIST_FILE = Info.plist;
 				LD_NO_PIE = YES;
