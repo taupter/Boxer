@@ -197,6 +197,32 @@ NSString * const BXDOCFileType      = @"com.microsoft.word.doc";
     return handlers;
 }
 
++ (NSDictionary *) extensionToTypeMapping
+{
+    static NSDictionary *mapping;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        mapping = @{
+            // Folder types - these take precedence over macOS UTI detection
+            @"harddisk": BXHardDiskFolderType,
+            @"harddrive": BXHardDiskFolderType,
+            @"floppy": BXFloppyFolderType,
+            @"cdrom": BXCDROMFolderType,
+            @"cdmedia": BXCDROMImageBundleType,
+
+            // Image types
+            @"cue": BXCuesheetImageType,
+            @"inst": BXCuesheetImageType,
+            @"iso": BXISOImageType,
+            @"cdr": BXCDRImageType,
+            @"ima": BXRawFloppyImageType,
+            @"vfd": BXVirtualPCImageType,
+            @"gog": @"com.gog.gog-disk-image",
+        };
+    });
+    return mapping;
+}
+
 + (NSString *) bundleIdentifierForApplicationToOpenURL: (NSURL *)URL
 {
     NSURL *resolvedURL = URL.URLByResolvingSymlinksInPath;
@@ -474,11 +500,19 @@ NSString * const BXExecutableTypesErrorDomain = @"BXExecutableTypesErrorDomain";
 + (id <ADBFilesystemPathAccess, ADBFilesystemLogicalURLAccess>) filesystemWithContentsOfURL: (NSURL *)URL
                                                                                       error: (out NSError **)outError
 {
-    if ([URL conformsToFileType: BXCuesheetImageType])
+    // FIRST: Check by extension (authoritative for Boxer-specific types)
+    NSString *extension = URL.pathExtension.lowercaseString;
+    NSString *extensionType = [self extensionToTypeMapping][extension];
+
+    // CUE/INST files
+    if ([extension isEqualToString:@"cue"] || [extension isEqualToString:@"inst"] ||
+        [URL conformsToFileType: BXCuesheetImageType])
     {
         return [ADBBinCueImage imageWithContentsOfURL: URL error: outError];
     }
-    else if ([URL matchingFileType: [NSSet setWithObjects: BXISOImageType, BXCDRImageType, nil]])
+    // ISO/CDR files
+    else if ([extension isEqualToString:@"iso"] || [extension isEqualToString:@"cdr"] || [extension isEqualToString:@"gog"] ||
+             [URL matchingFileType: [NSSet setWithObjects: BXISOImageType, BXCDRImageType, nil]])
     {
         NSError *ourError = nil;
         ADBISOImage *isoImg = [ADBISOImage imageWithContentsOfURL: URL error: &ourError];
@@ -496,10 +530,13 @@ NSString * const BXExecutableTypesErrorDomain = @"BXExecutableTypesErrorDomain";
             return isoImg;
         }
     }
-    else if ([URL matchingFileType: [ADBMountableImage supportedImageTypes]])
+    // Other mountable image types (IMA, VFD, DMG, etc.)
+    else if ([extension isEqualToString:@"ima"] || [extension isEqualToString:@"vfd"] ||
+             [URL matchingFileType: [ADBMountableImage supportedImageTypes]])
     {
         return [ADBMountableImage imageWithContentsOfURL: URL error: outError];
     }
+    // Default: local filesystem
     else
     {
         return [ADBLocalFilesystem filesystemWithBaseURL: URL];
