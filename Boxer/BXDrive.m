@@ -64,29 +64,56 @@
 + (BXDriveType) preferredTypeForContentsOfURL: (NSURL *)URL
 {
 	NSWorkspace *workspace = [NSWorkspace sharedWorkspace];
-    
-    //First check if the file's UTI corresponds to one of our known types.
+
+    //FIRST: Check extension-based type detection (authoritative for Boxer folders)
+    NSString *extension = URL.pathExtension.lowercaseString;
+    if (extension.length > 0)
+    {
+        NSString *extensionType = [BXFileTypes extensionToTypeMapping][extension];
+        if (extensionType)
+        {
+            // Map UTI types to drive types
+            if ([extensionType isEqualToString:BXCDROMFolderType] ||
+                [extensionType isEqualToString:BXCDROMImageBundleType] ||
+                [extensionType isEqualToString:BXCuesheetImageType] ||
+                [extensionType isEqualToString:BXISOImageType] ||
+                [extensionType isEqualToString:BXCDRImageType])
+                return BXDriveCDROM;
+
+            if ([extensionType isEqualToString:BXFloppyFolderType] ||
+                [extensionType isEqualToString:BXRawFloppyImageType] ||
+                [extensionType isEqualToString:BXVirtualPCImageType] ||
+                [extensionType isEqualToString:BXNDIFImageType] ||
+                [extensionType isEqualToString:BXUDIFImageType])
+                return BXDriveFloppyDisk;
+
+            if ([extensionType isEqualToString:BXHardDiskFolderType])
+                return BXDriveHardDisk;
+        }
+    }
+
+    //FALLBACK: Check if the file's UTI corresponds to one of our known types.
     //This catches disk images and Boxer mountable folders (.cdrom, .harddisk etc.)
     if ([URL matchingFileType: [BXFileTypes cdVolumeTypes]] != nil)
         return BXDriveCDROM;
-    
+
     if ([URL matchingFileType: [BXFileTypes floppyVolumeTypes]] != nil)
         return BXDriveFloppyDisk;
-    
+
     if ([URL matchingFileType: [BXFileTypes hddVolumeTypes]] != nil)
         return BXDriveHardDisk;
-    
+
     //Failing that, check the volume type of the underlying filesystem at that location.
     NSString *volumeType = [workspace typeOfVolumeAtURL: URL];
-	
+
 	//Mount locations on data or audio CD volumes as CD-ROM drives.
 	if ([volumeType isEqualToString: ADBDataCDVolumeType] || [volumeType isEqualToString: ADBAudioCDVolumeType])
 		return BXDriveCDROM;
-    
+
 	//If the location is on a FAT/FAT32 volume, check if it's floppy-sized.
 	if ([workspace isFloppyVolumeAtURL: URL])
         return BXDriveFloppyDisk;
-	
+
 	//In all other cases, fall back on a standard hard-disk mount.
 	return BXDriveHardDisk;
 }
@@ -113,8 +140,20 @@
 {
     //Dots in DOS volume labels are acceptable, but may be confused with file extensions which
     //we do want to remove. So, we strip off the extensions for our known image/folder types.
-    BOOL shouldStripExtension = ([URL matchingFileType: [self mountableTypesWithExtensions]] != nil);
-    
+    BOOL shouldStripExtension = NO;
+
+    // FIRST: Check if extension is in our mapping (authoritative)
+    NSString *extension = URL.pathExtension.lowercaseString;
+    if (extension.length > 0 && [BXFileTypes extensionToTypeMapping][extension])
+    {
+        shouldStripExtension = YES;
+    }
+    // FALLBACK: Check UTI
+    else if ([URL matchingFileType: [self mountableTypesWithExtensions]] != nil)
+    {
+        shouldStripExtension = YES;
+    }
+
     NSString *baseName = URL.lastPathComponent;
     if (shouldStripExtension)
         baseName = baseName.stringByDeletingPathExtension;
@@ -140,18 +179,63 @@
 {
     //If the URL represents a Boxer mountable folder or a disk image,
     //try to parse the drive letter from the name.
-    if ([URL matchingFileType: [self mountableTypesWithEmbeddedDriveLetters]] != nil)
+    BOOL isExtensionMatch = NO;
+    BOOL isUTIMatch = NO;
+
+    // FIRST: Try extension-based matching (authoritative)
+    NSString *extension = URL.pathExtension.lowercaseString;
+    if (extension.length > 0)
+    {
+        NSString *extensionType = [BXFileTypes extensionToTypeMapping][extension];
+        if (extensionType)
+        {
+            // Extension mapping is authoritative - if it's in our mapping, it's mountable
+            isExtensionMatch = YES;
+            NSLog(@"[BXDrive] preferredDriveLetterForContentsOfURL: %@ (matched by extension: .%@ → %@)",
+                  URL.lastPathComponent, extension, extensionType);
+        }
+    }
+
+    // FALLBACK: Try UTI-based matching
+    if (!isExtensionMatch)
+    {
+        NSSet *mountableTypes = [self mountableTypesWithEmbeddedDriveLetters];
+        NSString *matchedType = [URL matchingFileType: mountableTypes];
+        if (matchedType)
+        {
+            isUTIMatch = YES;
+            NSLog(@"[BXDrive] preferredDriveLetterForContentsOfURL: %@ (matched by UTI: %@)",
+                  URL.lastPathComponent, matchedType);
+        }
+    }
+
+    if (isExtensionMatch || isUTIMatch)
 	{
 		NSString *baseName          = URL.lastPathComponent.stringByDeletingPathExtension;
 		NSString *detectedLetter	= [baseName stringByMatching: @"^([a-xA-X])( .*)?$" capture: 1];
+        NSLog(@"[BXDrive]   baseName: '%@' → regex match: '%@'", baseName, detectedLetter ?: @"(no match)");
 		return detectedLetter;	//will be nil if no match was found
 	}
+    NSLog(@"[BXDrive]   Not a mountable type, returning nil");
 	return nil;
 }
 
 + (NSURL *) mountPointForContentsOfURL: (NSURL *)URL
 {
-    if ([URL conformsToFileType: BXCDROMImageBundleType])
+    // Check if this is a CD-ROM bundle - first by extension, then by UTI
+    BOOL isCDROMBundle = NO;
+
+    NSString *extension = URL.pathExtension.lowercaseString;
+    if ([extension isEqualToString:@"cdmedia"])
+    {
+        isCDROMBundle = YES;
+    }
+    else if ([URL conformsToFileType: BXCDROMImageBundleType])
+    {
+        isCDROMBundle = YES;
+    }
+
+    if (isCDROMBundle)
     {
         return [URL URLByAppendingPathComponent: @"tracks.cue" isDirectory: NO];
     }
@@ -244,20 +328,24 @@
 				self.mountPointURL = [self.class mountPointForContentsOfURL: _sourceURL];
                 self.hasAutodetectedMountPoint = YES;
             }
-			
+
 			//Automatically parse the drive letter, title and volume label from the name of the drive
 			if (!self.letter)
             {
-                self.letter = [self.class preferredDriveLetterForContentsOfURL: _sourceURL];
+                NSString *detectedLetter = [self.class preferredDriveLetterForContentsOfURL: _sourceURL];
+                NSLog(@"[BXDrive] Drive letter detection for '%@': %@",
+                      _sourceURL.lastPathComponent,
+                      detectedLetter ?: @"(none detected)");
+                self.letter = detectedLetter;
                 self.hasAutodetectedLetter = YES;
             }
-            
+
 			if (!self.volumeLabel)
             {
                 self.volumeLabel = [self.class preferredVolumeLabelForContentsOfURL: _sourceURL];
                 self.hasAutodetectedVolumeLabel = YES;
             }
-            
+
 			if (!self.title)
             {
                 self.title = [self.class preferredTitleForContentsOfURL: _sourceURL];

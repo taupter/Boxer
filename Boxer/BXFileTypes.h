@@ -69,6 +69,11 @@ extern NSString * const BXBatchProgramType;     //!< .bat
 /// want to override the handler for files with different extensions that conform to that UTI.
 @property (class, readonly, copy) NSDictionary<NSString*,NSString*> *fileHandlerOverrides;
 
+/// A dictionary of file extension->UTI pairs for Boxer-specific mountable types.
+/// This mapping takes precedence over macOS UTI detection, which may be unreliable
+/// when custom UTIs are not properly registered in the Launch Services database.
+@property (class, readonly, copy) NSDictionary<NSString*,NSString*> *extensionToTypeMapping;
+
 /// Returns a specific bundle identifier that we want to use to open the specified URL,
 /// or `nil` if OS X's default handler should be used. This uses `fileHandlerOverrides` to
 /// selectively override the default for files with particular extensions.

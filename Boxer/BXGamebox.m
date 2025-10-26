@@ -477,13 +477,51 @@ NSString * const BXGameboxErrorDomain = @"BXGameboxErrorDomain";
                                                              includingPropertiesForKeys: @[NSURLTypeIdentifierKey]
                                                                                 options: options
                                                                            errorHandler: NULL];
-    
+
+    NSLog(@"[BXGamebox] Scanning for volumes in: %@", self.resourceURL.lastPathComponent);
+    // NSLog(@"[BXGamebox] Looking for file types: %@", fileTypes);
+
     NSMutableArray *matches = [NSMutableArray arrayWithCapacity: 10];
     for (NSURL *URL in enumerator)
     {
-        if ([URL matchingFileType: fileTypes] != nil)
+        NSString *matchedType = nil;
+
+        // FIRST: Try extension-based matching (authoritative)
+        NSString *extension = URL.pathExtension.lowercaseString;
+        if (extension.length > 0)
+        {
+            NSString *extensionType = [BXFileTypes extensionToTypeMapping][extension];
+            if (extensionType && [fileTypes containsObject:extensionType])
+            {
+                matchedType = extensionType;
+                NSLog(@"[BXGamebox] ✓ Matched by extension: %@ (.%@ → %@)",
+                      URL.lastPathComponent, extension, matchedType);
+            }
+        }
+
+        // FALLBACK: Try UTI-based matching
+        if (!matchedType)
+        {
+            matchedType = [URL matchingFileType: fileTypes];
+            if (matchedType)
+            {
+                NSLog(@"[BXGamebox] ✓ Matched by UTI: %@ (type: %@)",
+                      URL.lastPathComponent, matchedType);
+            }
+        }
+
+        // Add to results or log skip reason
+        if (matchedType != nil)
+        {
             [matches addObject: URL];
+        }
+        else
+        {
+            // NSLog(@"[BXGamebox] ✗ Skipped: %@ (UTI: %@, extension: %@)",
+            //      URL.lastPathComponent, URL.typeIdentifier ?: @"(null)", URL.pathExtension ?: @"(none)");
+        }
     }
+    NSLog(@"[BXGamebox] Found %lu matching volume(s)", (unsigned long)matches.count);
     return matches;
 }
 
@@ -504,32 +542,49 @@ NSString * const BXGameboxErrorDomain = @"BXGameboxErrorDomain";
 
 - (NSArray *) bundledDrives
 {
+    NSLog(@"[BXGamebox] === Building bundled drives list ===");
+
     NSMutableArray *bundledVolumes = [NSMutableArray arrayWithCapacity: 10];
     [bundledVolumes addObjectsFromArray: self.floppyVolumeURLs];
     [bundledVolumes addObjectsFromArray: self.hddVolumeURLs];
     [bundledVolumes addObjectsFromArray: self.cdVolumeURLs];
-    
+
+    NSLog(@"[BXGamebox] Total bundled volume URLs found: %lu", (unsigned long)bundledVolumes.count);
+
     BOOL hasProperDriveC = NO;
     NSMutableArray *drives = [NSMutableArray arrayWithCapacity: bundledVolumes.count];
-    
+
     for (NSURL *volumeURL in bundledVolumes)
     {
         BXDrive *drive = [BXDrive driveWithContentsOfURL: volumeURL letter: nil type: BXDriveAutodetect];
+        NSLog(@"[BXGamebox] Created drive from %@: letter=%@, type=%ld, volumeLabel=%@",
+              volumeURL.lastPathComponent,
+              drive.letter ?: @"(none)",
+              (long)drive.type,
+              drive.volumeLabel ?: @"(none)");
         [drives addObject: drive];
-        
+
         if ([drive.letter isEqualToString: @"C"])
+        {
+            NSLog(@"[BXGamebox] → Found explicit C drive!");
             hasProperDriveC = YES;
+        }
     }
-    
+
     //If we don't contain an explicit drive C, that means we're an old-style gamebox:
     //In this case, use the base folder of the gamebox itself as drive C.
     if (!hasProperDriveC)
     {
+        NSLog(@"[BXGamebox] No explicit C drive found, using gamebox root as C:");
         BXDrive *drive = [BXDrive driveWithContentsOfURL: self.resourceURL
                                                   letter: @"C"
                                                     type: BXDriveHardDisk];
-        
+        NSLog(@"[BXGamebox] → Created fallback C drive from %@", self.resourceURL.lastPathComponent);
         [drives addObject: drive];
+    }
+    else
+    {
+        NSLog(@"[BXGamebox] Using explicit C drive from .harddisk folder");
     }
     
     //Sort the drives first by letter and then by filename.
