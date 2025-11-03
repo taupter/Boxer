@@ -17,6 +17,7 @@
 #import "BXExternalMIDIDevice.h"
 #import "BXExternalMT32.h"
 #import "Boxer-Swift.h"
+#import "RegexKitLite.h"
 
 
 @implementation BXSession (BXAudioControls)
@@ -122,6 +123,13 @@
         NSError *emulatedMT32Error = nil;
         NSURL *PCMROMURL        = [(BXBaseAppController *)[NSApp delegate] MT32PCMROMURL];
         NSURL *controlROMURL    = [(BXBaseAppController *)[NSApp delegate] MT32ControlROMURL];
+
+        //Fallback: check gamebox for ROMs if not found in Application Support
+        if (!PCMROMURL && self.gamebox)
+            PCMROMURL = [self _MT32PCMROMURLInGamebox];
+        if (!controlROMURL && self.gamebox)
+            controlROMURL = [self _MT32ControlROMURLInGamebox];
+
         BXEmulatedMT32 *emulatedMT32 = [[BXEmulatedMT32 alloc] initWithPCMROM: PCMROMURL
                                                                     controlROM: controlROMURL
                                                                       delegate: theEmulator
@@ -241,4 +249,48 @@
         return NO;
     }
 }
+
+#pragma mark -
+#pragma mark MT-32 ROM support (gamebox fallback)
+
+- (NSURL *) _MT32ROMURLInGameboxMatchingPattern: (NSString *)pattern
+{
+    if (!self.gamebox || !self.fileURL)
+        return nil;
+
+    NSURL *romsDir = [self.fileURL URLByAppendingPathComponent: @"MT-32 ROMs"];
+
+    if (![romsDir checkResourceIsReachableAndReturnError: NULL])
+        return nil;
+
+    NSDirectoryEnumerationOptions options = NSDirectoryEnumerationSkipsHiddenFiles | NSDirectoryEnumerationSkipsSubdirectoryDescendants;
+    NSDirectoryEnumerator *enumerator = [[NSFileManager defaultManager] enumeratorAtURL: romsDir
+                                                             includingPropertiesForKeys: nil
+                                                                                options: options
+                                                                           errorHandler: NULL];
+
+    for (NSURL *URL in enumerator)
+    {
+        NSString *fileName = URL.lastPathComponent;
+        if ([fileName isMatchedByRegex: pattern
+                               options: RKLCaseless
+                               inRange: NSMakeRange(0, fileName.length)
+                                 error: nil])
+        {
+            return URL;
+        }
+    }
+    return nil;
+}
+
+- (NSURL *) _MT32ControlROMURLInGamebox
+{
+    return [self _MT32ROMURLInGameboxMatchingPattern: @"control"];
+}
+
+- (NSURL *) _MT32PCMROMURLInGamebox
+{
+    return [self _MT32ROMURLInGameboxMatchingPattern: @"pcm"];
+}
+
 @end
